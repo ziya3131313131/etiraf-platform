@@ -15,6 +15,10 @@ const canliYayimSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  yayımURL: {
+    type: String,
+    default: ''
+  },
   status: {
     type: String,
     enum: ['canlı', 'bitdi', 'gözləmədə'],

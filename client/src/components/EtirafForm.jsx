@@ -1,28 +1,31 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
-const kateqoriyalar = ['sevgi', 'dostluq', 'iş', 'ailə', 'digər'];
-
 function EtirafForm({ onSubmit }) {
   const { authenticated, user } = useAuth();
+  const [başlıq, setBaşlıq] = useState('');
   const [metn, setMetn] = useState('');
-  const [kateqoriya, setKateqoriya] = useState('digər');
   const [anonim, setAnonim] = useState(true);
   const [gondərilir, setGondərilir] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    if (başlıq.trim().length === 0) {
+      alert('Başlıq daxil edin');
+      return;
+    }
+
     if (metn.trim().length === 0) {
-      alert('Xahiş olunur etiraf yazın');
+      alert('Etiraf yazın');
       return;
     }
 
     setGondərilir(true);
     try {
-      await onSubmit(metn, kateqoriya, anonim);
+      await onSubmit(başlıq, metn, anonim);
+      setBaşlıq('');
       setMetn('');
-      setKateqoriya('digər');
       setAnonim(true);
     } catch (error) {
       alert('Xəta baş verdi. Zəhmət olmasa yenidən cəhd edin.');
@@ -35,25 +38,25 @@ function EtirafForm({ onSubmit }) {
     <div className="etiraf-form">
       <h2>✍️ Etirafını Paylaş</h2>
       <form onSubmit={handleSubmit}>
+        <input
+          type="text"
+          className="bashliq-input"
+          placeholder="Başlıq (məsələn: İtirilmiş sevgi, Keçmiş xatirələr...)"
+          value={başlıq}
+          onChange={(e) => setBaşlıq(e.target.value)}
+          maxLength={200}
+          disabled={gondərilir}
+        />
+        
         <textarea
           placeholder="Etirafını bura yaz..."
           value={metn}
           onChange={(e) => setMetn(e.target.value)}
-          maxLength={1000}
+          maxLength={2000}
           disabled={gondərilir}
         />
         
         <div className="form-footer">
-          <select 
-            value={kateqoriya} 
-            onChange={(e) => setKateqoriya(e.target.value)}
-            disabled={gondərilir}
-          >
-            {kateqoriyalar.map(k => (
-              <option key={k} value={k}>{k.charAt(0).toUpperCase() + k.slice(1)}</option>
-            ))}
-          </select>
-
           {authenticated && (
             <label className="anonim-checkbox">
               <input
@@ -62,12 +65,12 @@ function EtirafForm({ onSubmit }) {
                 onChange={(e) => setAnonim(e.target.checked)}
                 disabled={gondərilir}
               />
-              <span>Anonim</span>
+              <span>{anonim ? '🎭 Anonim' : `📝 ${user?.istifadəçiAdı}`}</span>
             </label>
           )}
 
-          <button type="submit" disabled={gondərilir}>
-            {gondərilir ? 'Göndərilir...' : 'Göndər 🚀'}
+          <button type="submit" className="submit-btn" disabled={gondərilir}>
+            {gondərilir ? '⏳ Göndərilir...' : '🚀 Paylaş'}
           </button>
         </div>
 

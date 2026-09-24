@@ -1,9 +1,24 @@
 import { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 
-function EtirafCard({ etiraf, onBeyenme, onSerh }) {
+function EtirafCard({ etiraf, onBeyenme, onSerh, onSil }) {
+  const { user } = useAuth();
   const [serhAciq, setSerhAciq] = useState(false);
   const [serhMetn, setSerhMetn] = useState('');
   const [serhGondərilir, setSerhGondərilir] = useState(false);
+
+  // İstifadəçi bu etirafı silə bilərmi?
+  const silmǝİcazǝsi = () => {
+    if (!user) return false;
+    
+    // Admin və moderator hamsını silə bilər
+    if (user.rol === 'admin' || user.rol === 'moderator') return true;
+    
+    // İstifadəçi öz etirafını silə bilər
+    if (!etiraf.anonim && etiraf.müəllif === user.id) return true;
+    
+    return false;
+  };
 
   const formatTarix = (tarix) => {
     const date = new Date(tarix);
@@ -35,16 +50,26 @@ function EtirafCard({ etiraf, onBeyenme, onSerh }) {
   return (
     <div className="etiraf-card">
       <div className="etiraf-header">
-        <span className={`kateqoriya-badge badge-${etiraf.kateqoriya}`}>
-          {etiraf.kateqoriya}
-        </span>
+        <h3 className="etiraf-bashliq">{etiraf.başlıq}</h3>
         <span className="tarix">{formatTarix(etiraf.tarix)}</span>
       </div>
 
       {/* Müəllif məlumatı */}
-      {!etiraf.anonim && etiraf.müəllifAdı && (
+      {!etiraf.anonim && etiraf.müəllif && (
         <div className="etiraf-author">
-          <span className="author-name">📝 {etiraf.müəllifAdı}</span>
+          {etiraf.müəllif.profil?.avatar && (
+            <img 
+              src={etiraf.müəllif.profil.avatar} 
+              alt={etiraf.müəllif.istifadəçiAdı}
+              className={`author-avatar ${etiraf.müəllif.profil.avatarType === 'gif' ? 'gif-avatar' : ''}`}
+            />
+          )}
+          <span className="author-name">
+            📝 {etiraf.müəllif.istifadəçiAdı || etiraf.müəllifAdı}
+            {(etiraf.müəllif.rol === 'admin' || etiraf.müəllif.rol === 'moderator') && (
+              <span className="role-badge">{etiraf.müəllif.rol === 'admin' ? '👑' : '🛡️'}</span>
+            )}
+          </span>
         </div>
       )}
       {etiraf.anonim && (
@@ -57,28 +82,49 @@ function EtirafCard({ etiraf, onBeyenme, onSerh }) {
 
       <div className="etiraf-actions">
         <button 
-          className="action-btn" 
-          onClick={() => onBeyenme(etiraf._id)}
-        >
-          ❤️ {etiraf.bəyənilmələr || 0}
-        </button>
-        <button 
           className={`action-btn ${serhAciq ? 'active' : ''}`}
           onClick={() => setSerhAciq(!serhAciq)}
         >
-          💬 {etiraf.şərhlər?.length || 0}
+          💬 {etiraf.şərhlər?.length || 0} Şərh
         </button>
+        
+        {/* Silmə düyməsi */}
+        {silmǝİcazǝsi() && onSil && (
+          <button 
+            className="action-btn delete-btn" 
+            onClick={() => {
+              if (window.confirm('Etirafı silmək istədiyinizdən əminsiniz?')) {
+                onSil(etiraf._id);
+              }
+            }}
+            title="Etirafı sil"
+          >
+            🗑️
+          </button>
+        )}
       </div>
 
       {serhAciq && (
         <div className="serhler">
           {etiraf.şərhlər && etiraf.şərhlər.length > 0 && (
             <>
-              <h4>Şərhlər:</h4>
+              <h4>💬 Şərhlər:</h4>
               {etiraf.şərhlər.map((serh, index) => (
                 <div key={index} className="serh-item">
+                  <div className="serh-header">
+                    {serh.müəllif?.profil?.avatar && (
+                      <img 
+                        src={serh.müəllif.profil.avatar} 
+                        alt={serh.müəllifAdı}
+                        className="serh-avatar"
+                      />
+                    )}
+                    <span className="serh-author">
+                      {serh.müəllifAdı || 'Anonim'}
+                    </span>
+                    <span className="serh-tarix">{formatTarix(serh.tarix)}</span>
+                  </div>
                   <p className="serh-metn">{serh.metn}</p>
-                  <span className="serh-tarix">{formatTarix(serh.tarix)}</span>
                 </div>
               ))}
             </>
@@ -94,7 +140,7 @@ function EtirafCard({ etiraf, onBeyenme, onSerh }) {
               maxLength={500}
             />
             <button type="submit" disabled={serhGondərilir}>
-              {serhGondərilir ? '...' : 'Göndər'}
+              {serhGondərilir ? '...' : '📤'}
             </button>
           </form>
         </div>

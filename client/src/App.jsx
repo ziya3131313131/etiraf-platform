@@ -8,6 +8,7 @@ import Login from './components/Login';
 import AdminPanel from './components/AdminPanel';
 import CanliYayim from './components/CanliYayim';
 import Destek from './components/Destek';
+import ProfilPanel from './components/ProfilPanel';
 import { API_URL as BASE_URL, API_BASE } from './config';
 
 const API_URL = API_BASE;
@@ -19,6 +20,7 @@ function AppContent() {
   const [onlineUsers, setOnlineUsers] = useState(0);
   const [loading, setLoading] = useState(true);
   const [səhifə, setSəhifə] = useState('etiraflar'); // 'etiraflar', 'canli', 'admin', 'destek'
+  const [profilPanelAçıq, setProfilPanelAçıq] = useState(false);
 
   useEffect(() => {
     // İlk etirafları yüklə
@@ -49,6 +51,11 @@ function AppContent() {
       );
     });
 
+    socket.on('etiraf-silindi', ({ etirafId }) => {
+      console.log('🗑️ Etiraf silindi:', etirafId);
+      setEtiraflar(prev => prev.filter(e => e._id !== etirafId));
+    });
+
     socket.on('istifadeci-sayi', (sayi) => {
       setOnlineUsers(sayi);
     });
@@ -57,6 +64,7 @@ function AppContent() {
       socket.off('yeni-etiraf');
       socket.off('beyenme-yenilendi');
       socket.off('yeni-serh');
+      socket.off('etiraf-silindi');
       socket.off('istifadeci-sayi');
     };
   }, []);
@@ -73,12 +81,12 @@ function AppContent() {
     }
   };
 
-  const handleYeniEtiraf = async (metn, kateqoriya, anonim) => {
+  const handleYeniEtiraf = async (başlıq, metn, anonim) => {
     try {
       const token = localStorage.getItem('token');
       await axios.post(`${API_URL}/etiraf`, { 
+        başlıq,
         metn, 
-        kateqoriya,
         anonim,
         token
       });
@@ -89,20 +97,26 @@ function AppContent() {
     }
   };
 
-  const handleBeyenme = async (etirafId) => {
-    try {
-      await axios.post(`${API_URL}/etiraf/${etirafId}/beyenme`);
-    } catch (error) {
-      console.error('Bəyənilmərkən xəta:', error);
-    }
-  };
-
   const handleSerh = async (etirafId, metn) => {
     try {
-      await axios.post(`${API_URL}/etiraf/${etirafId}/serh`, { metn });
+      const token = localStorage.getItem('token');
+      await axios.post(`${API_URL}/etiraf/${etirafId}/serh`, { metn, token });
     } catch (error) {
       console.error('Şərh göndərilərkən xəta:', error);
       throw error;
+    }
+  };
+
+  const handleEtirafSil = async (etirafId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`${API_URL}/etiraf/${etirafId}`, {
+        data: { token }
+      });
+      // Socket.IO avtomatik olaraq silməni bildirecək
+    } catch (error) {
+      console.error('Etiraf silinərkən xəta:', error);
+      alert('Etiraf silinərkən xəta baş verdi: ' + (error.response?.data?.xəta || error.message));
     }
   };
 
@@ -149,11 +163,31 @@ function AppContent() {
           )}
         </div>
         <div className="nav-user">
+          {/* Profil şəkli */}
+          <div className="user-avatar-container" onClick={() => setProfilPanelAçıq(true)}>
+            {user?.profil?.avatar ? (
+              <img 
+                src={user.profil.avatar} 
+                alt={user.istifadəçiAdı}
+                className="user-avatar"
+              />
+            ) : (
+              <div className="user-avatar-placeholder">
+                {user?.istifadəçiAdı?.charAt(0).toUpperCase()}
+              </div>
+            )}
+          </div>
+          
           <span className="user-jeton">🪙 {user?.jeton || 0}</span>
           <span className="user-name">{user?.istifadəçiAdı}</span>
           <button className="logout-btn" onClick={çıxış}>Çıxış</button>
         </div>
       </nav>
+
+      {/* Profil Paneli */}
+      {profilPanelAçıq && (
+        <ProfilPanel onClose={() => setProfilPanelAçıq(false)} />
+      )}
 
       <div className="container">
         {səhifə === 'etiraflar' && (
@@ -178,8 +212,8 @@ function AppContent() {
                   <EtirafCard
                     key={etiraf._id}
                     etiraf={etiraf}
-                    onBeyenme={handleBeyenme}
                     onSerh={handleSerh}
+                    onSil={handleEtirafSil}
                   />
                 ))
               )}

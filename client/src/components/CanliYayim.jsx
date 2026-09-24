@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import io from 'socket.io-client';
 import axios from 'axios';
+import io from 'socket.io-client';
 import { getHediyyeList } from '../utils/hediyyeler';
 import { API_URL as BASE_URL, API_BASE } from '../config';
 
@@ -12,37 +12,31 @@ function CanliYayim() {
   const { user, jetonYenilə } = useAuth();
   const [yayımlar, setYayımlar] = useState([]);
   const [aktivYayım, setAktivYayım] = useState(null);
-  const [yayımModu, setYayımModu] = useState(false); // Yayımçı vs izləyici
+  const [yayımModu, setYayımModu] = useState(false);
+  
+  // Yayım parametrləri
   const [başlıq, setBaşlıq] = useState('');
   const [təsvir, setTəsvir] = useState('');
+  const [yayımURL, setYayımURL] = useState(''); // YouTube/Twitch embed URL
+  
+  // Chat
   const [chatMesaj, setChatMesaj] = useState('');
   const [chatMesajlar, setChatMesajlar] = useState([]);
   const [izləyiciSayı, setİzləyiciSayı] = useState(0);
-  const [hədiyyələr, setHədiyyələr] = useState(getHediyyeList());
+  
+  // Hədiyyələr
+  const [hədiyyələr] = useState(getHediyyeList());
   const [hədiyyəPaneliAçıq, setHədiyyəPaneliAçıq] = useState(false);
   const [animasiyalar, setAnimasiyalar] = useState([]);
-  
-  // Media kontrolları
-  const [səsAktiv, setSəsAktiv] = useState(true);
-  const [videoAktiv, setVideoAktiv] = useState(true);
   
   // PK
   const [pkAktiv, setPkAktiv] = useState(false);
   const [pkNəticə, setPkNəticə] = useState({ yayımçıJeton: 0, rəqibJeton: 0 });
-  const [pkMüddət, setPkMüddət] = useState(0);
-  
-  const videoRef = useRef(null);
-  const localStreamRef = useRef(null);
-  const chatEndRef = useRef(null);
 
   useEffect(() => {
     yayımlarıGətir();
 
-    // Socket qoşul
-    if (user) {
-      socket.emit('user-qosul', user.id);
-    }
-
+    // Socket event-ləri
     socket.on('yeni-canli-yayim', (yayım) => {
       setYayımlar(prev => [yayım, ...prev]);
     });
@@ -56,18 +50,15 @@ function CanliYayim() {
 
     socket.on('yeni-chat-mesaj', (mesaj) => {
       setChatMesajlar(prev => [...prev, mesaj]);
-      scrollChatToBottom();
     });
 
     socket.on('izleyici-sayisi', ({ sayi }) => {
       setİzləyiciSayı(sayi);
     });
 
-    // Hədiyyə animasiyası
     socket.on('yeni-hediyye', (hədiyyəData) => {
       göstərHədiyyəAnimasiyası(hədiyyəData);
       
-      // PK nəticəsini yenilə
       if (hədiyyəData.pkStatus) {
         setPkNəticə({
           yayımçıJeton: hədiyyəData.pkStatus.yayımçıJeton,
@@ -76,40 +67,19 @@ function CanliYayim() {
       }
     });
 
-    // PK eventləri
-    socket.on('pk-basladi', ({ rəqib, müddət }) => {
-      setPkAktiv(true);
-      setPkMüddət(müddət);
-      setPkNəticə({ yayımçıJeton: 0, rəqibJeton: 0 });
-    });
-
-    socket.on('pk-bitdi', ({ nəticə }) => {
-      setPkAktiv(false);
-      alert(`PK bitdi! Nəticə: ${nəticə.yayımçıJeton} vs ${nəticə.rəqibJeton}`);
-    });
-
     return () => {
       socket.off('yeni-canli-yayim');
       socket.off('canli-yayim-bitdi');
       socket.off('yeni-chat-mesaj');
       socket.off('izleyici-sayisi');
       socket.off('yeni-hediyye');
-      socket.off('pk-basladi');
-      socket.off('pk-bitdi');
     };
-  }, [aktivYayım, user]);
-
-  const scrollChatToBottom = () => {
-    setTimeout(() => {
-      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
-  };
+  }, [aktivYayım]);
 
   const göstərHədiyyəAnimasiyası = (hədiyyəData) => {
     const id = Date.now() + Math.random();
     setAnimasiyalar(prev => [...prev, { ...hədiyyəData, id }]);
     
-    // 3 saniyə sonra sil
     setTimeout(() => {
       setAnimasiyalar(prev => prev.filter(a => a.id !== id));
     }, 3000);
@@ -124,9 +94,32 @@ function CanliYayim() {
     }
   };
 
+  const getEmbedURL = (url) => {
+    // YouTube URL-ni embed formatına çevir
+    if (url.includes('youtube.com/watch')) {
+      const videoId = url.split('v=')[1]?.split('&')[0];
+      return `https://www.youtube.com/embed/${videoId}`;
+    }
+    if (url.includes('youtu.be/')) {
+      const videoId = url.split('youtu.be/')[1]?.split('?')[0];
+      return `https://www.youtube.com/embed/${videoId}`;
+    }
+    // Twitch
+    if (url.includes('twitch.tv/')) {
+      const channel = url.split('twitch.tv/')[1]?.split('?')[0];
+      return `https://player.twitch.tv/?channel=${channel}&parent=${window.location.hostname}`;
+    }
+    return url; // Direkt embed URL
+  };
+
   const yayımBaşlat = async () => {
     if (!başlıq.trim()) {
       alert('Yayım başlığı daxil edin');
+      return;
+    }
+
+    if (!yayımURL.trim()) {
+      alert('YouTube və ya Twitch yayım URL-i daxil edin');
       return;
     }
 
@@ -136,38 +129,26 @@ function CanliYayim() {
     }
 
     try {
-      // Kamera icazəsi al
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: true, 
-        audio: true 
-      });
-      
-      localStreamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-
-      // Backend-də yayım yarat
       const response = await axios.post(`${API_URL}/canli-yayim`, {
         başlıq,
-        təsvir
+        təsvir,
+        yayımURL: getEmbedURL(yayımURL)
+      }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
 
       setAktivYayım(response.data.yayım);
       setYayımModu(true);
       
-      // Socket room-a qoşul
       socket.emit('canli-yayima-qosul', { 
         yayımId: response.data.yayım._id,
         userId: user.id
       });
 
-      // Jetonu yenilə
       jetonYenilə();
-
       alert('Canlı yayım başladı! 🎥');
     } catch (error) {
-      alert('Xəta: ' + (error.response?.data?.xəta || 'Kamera icazəsi alınmadı'));
+      alert('Xəta: ' + (error.response?.data?.xəta || 'Yayım başladıla bilmədi'));
     }
   };
 
@@ -175,12 +156,9 @@ function CanliYayim() {
     if (!aktivYayım) return;
 
     try {
-      await axios.put(`${API_URL}/canli-yayim/${aktivYayım._id}/bitir`);
-      
-      // Kameranı bağla
-      if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach(track => track.stop());
-      }
+      await axios.put(`${API_URL}/canli-yayim/${aktivYayım._id}/bitir`, {}, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
 
       socket.emit('canli-yayimdan-ayril', { 
         yayımId: aktivYayım._id,
@@ -191,6 +169,7 @@ function CanliYayim() {
       setYayımModu(false);
       setBaşlıq('');
       setTəsvir('');
+      setYayımURL('');
       setChatMesajlar([]);
       setPkAktiv(false);
 
@@ -214,13 +193,10 @@ function CanliYayim() {
       const response = await axios.get(`${API_URL}/canli-yayim/${yayım._id}`);
       setChatMesajlar(response.data.chat || []);
       
-      // PK statusunu yüklə
       if (response.data.pkStatus?.aktiv) {
         setPkAktiv(true);
         setPkNəticə(response.data.pkStatus.nəticə);
       }
-      
-      scrollChatToBottom();
     } catch (error) {
       console.error('Chat yüklənmədi:', error);
     }
@@ -233,6 +209,8 @@ function CanliYayim() {
     try {
       await axios.post(`${API_URL}/canli-yayim/${aktivYayım._id}/chat`, {
         mesaj: chatMesaj
+      }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       setChatMesaj('');
     } catch (error) {
@@ -240,7 +218,7 @@ function CanliYayim() {
     }
   };
 
-  const hədiyyəGöndər = async (hədiyyə, pkTərəfi = null) => {
+  const hədiyyəGöndər = async (hədiyyə) => {
     if (user.jeton < hədiyyə.qiymət) {
       alert(`Kifayət qədər jetonunuz yoxdur. Lazım: ${hədiyyə.qiymət} jeton`);
       return;
@@ -248,249 +226,203 @@ function CanliYayim() {
 
     try {
       await axios.post(`${API_URL}/canli-yayim/${aktivYayım._id}/hediyye`, {
-        hədiyyəId: hədiyyə.id,
-        pkTərəfi
+        hədiyyəId: hədiyyə.id
+      }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      
-      jetonYenilə();
+
       setHədiyyəPaneliAçıq(false);
+      jetonYenilə();
     } catch (error) {
-      alert('Hədiyyə göndərilmədi: ' + error.response?.data?.xəta);
+      alert('Hədiyyə göndərilmədi: ' + (error.response?.data?.xəta || error.message));
     }
   };
 
-  const səsiBağla = () => {
-    setSəsAktiv(!səsAktiv);
-    if (localStreamRef.current) {
-      localStreamRef.current.getAudioTracks().forEach(track => {
-        track.enabled = !səsAktiv;
-      });
-    }
-    
-    socket.emit('konuk-media-status', {
-      yayımId: aktivYayım?._id,
-      konukId: user?.id,
-      səsAktiv: !səsAktiv,
-      videoAktiv
-    });
-  };
-
-  const videoyuBağla = () => {
-    setVideoAktiv(!videoAktiv);
-    if (localStreamRef.current) {
-      localStreamRef.current.getVideoTracks().forEach(track => {
-        track.enabled = !videoAktiv;
-      });
-    }
-    
-    socket.emit('konuk-media-status', {
-      yayımId: aktivYayım?._id,
-      konukId: user?.id,
-      səsAktiv,
-      videoAktiv: !videoAktiv
-    });
-  };
-
-  // Əgər aktiv yayım varsa, player göstər
-  if (aktivYayım) {
+  // Ana səhifə - yayımlar siyahısı
+  if (!aktivYayım) {
     return (
-      <div className="canli-yayim-player">
-        {/* Hədiyyə animasiyaları */}
-        <div className="hediyye-animasiyalar">
-          {animasiyalar.map((anim) => (
-            <div 
-              key={anim.id} 
-              className="hediyye-anim"
-              style={{ 
-                fontSize: anim.hədiyyə.qiymət > 1000 ? '120px' : 
-                         anim.hədiyyə.qiymət > 100 ? '80px' : '50px',
-                animation: 'hediyyeFloat 3s ease-out'
-              }}
-            >
-              <div className="hediyye-emoji">{anim.hədiyyə.emoji}</div>
-              <div className="hediyye-info">
-                <strong>{anim.göndərən}</strong> → {anim.hədiyyə.ad}
-              </div>
-            </div>
-          ))}
+      <div className="canli-yayim-container">
+        <div className="canli-header">
+          <h1>📹 Canlı Yayımlar</h1>
+          <button className="yayim-baslat-btn" onClick={() => setYayımModu('create')}>
+            🎥 Yeni Yayım Başlat
+          </button>
         </div>
 
-        <div className="player-header">
-          <h2>{aktivYayım.başlıq}</h2>
-          <div className="player-info">
-            <span>👁️ {izləyiciSayı} izləyici</span>
-            {yayımModu && (
-              <>
-                <button 
-                  className={`media-btn ${səsAktiv ? 'active' : 'muted'}`}
-                  onClick={səsiBağla}
-                  title={səsAktiv ? 'Səsi bağla' : 'Səsi aç'}
-                >
-                  {səsAktiv ? '🔊' : '🔇'}
-                </button>
-                <button 
-                  className={`media-btn ${videoAktiv ? 'active' : 'muted'}`}
-                  onClick={videoyuBağla}
-                  title={videoAktiv ? 'Videonu bağla' : 'Videonu aç'}
-                >
-                  {videoAktiv ? '📹' : '📷'}
-                </button>
-                <button className="bitir-btn" onClick={yayımıBitir}>
-                  Yayımı Bitir
-                </button>
-              </>
-            )}
-            {!yayımModu && (
-              <button className="geri-btn" onClick={() => {
-                setAktivYayım(null);
-                socket.emit('canli-yayimdan-ayril', { 
-                  yayımId: aktivYayım._id,
-                  userId: user.id
-                });
-              }}>
-                Geri
+        {/* Yayım yaratma formu */}
+        {yayımModu === 'create' && (
+          <div className="yayim-form">
+            <h2>🎬 Yeni Canlı Yayım</h2>
+            <input
+              type="text"
+              placeholder="Yayım başlığı"
+              value={başlıq}
+              onChange={(e) => setBaşlıq(e.target.value)}
+            />
+            <textarea
+              placeholder="Təsvir (ixtiyari)"
+              value={təsvir}
+              onChange={(e) => setTəsvir(e.target.value)}
+              rows={3}
+            />
+            <input
+              type="text"
+              placeholder="YouTube və ya Twitch yayım URL-i"
+              value={yayımURL}
+              onChange={(e) => setYayımURL(e.target.value)}
+            />
+            <p className="hint">💡 Misal: https://youtube.com/watch?v=... və ya https://twitch.tv/kanal</p>
+            <div className="form-actions">
+              <button onClick={yayımBaşlat} className="start-btn">
+                ✅ Başlat (50 jeton)
               </button>
-            )}
-          </div>
-        </div>
-
-        {/* PK Panel */}
-        {pkAktiv && (
-          <div className="pk-panel">
-            <div className="pk-side pk-left">
-              <span className="pk-label">Yayımçı</span>
-              <span className="pk-score">{pkNəticə.yayımçıJeton} 🪙</span>
-            </div>
-            <div className="pk-vs">⚔️ VS ⚔️</div>
-            <div className="pk-side pk-right">
-              <span className="pk-label">Rəqib</span>
-              <span className="pk-score">{pkNəticə.rəqibJeton} 🪙</span>
+              <button onClick={() => setYayımModu(false)} className="cancel-btn">
+                ❌ Ləğv et
+              </button>
             </div>
           </div>
         )}
 
-        <div className="player-container">
-          <div className="video-section">
-            {yayımModu ? (
-              <video ref={videoRef} autoPlay muted playsInline className="live-video" />
-            ) : (
-              <div className="video-placeholder">
-                📹 Canlı Video<br/>
-                <small>(WebRTC inteqrasiyası tamamlanacaq)</small>
-              </div>
-            )}
-            
-            {/* Hədiyyə paneli */}
-            {!yayımModu && (
-              <div className="hediyye-trigger">
-                <button 
-                  className="hediyye-btn"
-                  onClick={() => setHədiyyəPaneliAçıq(!hədiyyəPaneliAçıq)}
-                >
-                  🎁 Hədiyyə Göndər
-                </button>
-                {hədiyyəPaneliAçıq && (
-                  <div className="hediyye-panel">
-                    <h4>Hədiyyə Seç</h4>
-                    <div className="hediyye-grid">
-                      {hədiyyələr.map((h) => (
-                        <button
-                          key={h.id}
-                          className="hediyye-item"
-                          onClick={() => hədiyyəGöndər(h, pkAktiv ? 'yayımçı' : null)}
-                          disabled={user.jeton < h.qiymət}
-                        >
-                          <span className="hediyye-emoji-big">{h.emoji}</span>
-                          <span className="hediyye-name">{h.ad.split(' ')[1]}</span>
-                          <span className="hediyye-price">{h.qiymət} 🪙</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="chat-section">
-            <h3>💬 Chat</h3>
-            <div className="chat-messages">
-              {chatMesajlar.map((m, i) => (
-                <div key={i} className="chat-message">
-                  <strong>{m.istifadəçiAdı}:</strong> {m.mesaj}
-                </div>
-              ))}
-              <div ref={chatEndRef} />
+        {/* Aktiv yayımlar */}
+        <div className="yayimlar-grid">
+          {yayımlar.length === 0 ? (
+            <div className="no-yayim">
+              <p>🎭 Hal-hazırda aktiv yayım yoxdur</p>
+              <p>İlk yayımı sən başlat!</p>
             </div>
-            <form className="chat-input" onSubmit={mesajGöndər}>
-              <input
-                type="text"
-                placeholder="Mesaj yaz..."
-                value={chatMesaj}
-                onChange={(e) => setChatMesaj(e.target.value)}
-              />
-              <button type="submit">Göndər</button>
-            </form>
-          </div>
+          ) : (
+            yayımlar.map(yayım => (
+              <div key={yayım._id} className="yayim-card" onClick={() => yayımaQoşul(yayım)}>
+                <div className="yayim-thumbnail">
+                  <span className="live-badge">🔴 CANLI</span>
+                  <span className="viewer-count">👥 {yayım.izləyiciSayı || 0}</span>
+                </div>
+                <div className="yayim-info">
+                  <h3>{yayım.başlıq}</h3>
+                  <p className="yayimci-name">
+                    {yayım.yayımçı?.profil?.avatar && (
+                      <img src={yayım.yayımçı.profil.avatar} alt="" className="mini-avatar" />
+                    )}
+                    {yayım.yayımçı?.istifadəçiAdı || 'Anonim'}
+                  </p>
+                  {yayım.təsvir && <p className="yayim-desc">{yayım.təsvir}</p>}
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     );
   }
 
-  // Yayım siyahısı
+  // Yayım izləmə/yayımlama ekranı
   return (
-    <div className="canli-yayim-list">
-      <div className="yayim-header">
-        <h2>📹 Canlı Yayımlar</h2>
-        {user && (
-          <div className="yayim-start-section">
-            <p>💰 Jetonunuz: {user.jeton} (Yayım qiyməti: 50)</p>
-          </div>
+    <div className="yayim-viewer">
+      {/* Video player */}
+      <div className="video-container">
+        {aktivYayım.yayımURL ? (
+          <iframe
+            src={aktivYayım.yayımURL}
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            className="video-iframe"
+          />
+        ) : (
+          <div className="no-video">📹 Video yüklənir...</div>
         )}
+
+        {/* Hədiyyə animasiyaları */}
+        <div className="hediyye-animasiyalar">
+          {animasiyalar.map(anim => (
+            <div key={anim.id} className="hediyye-anim">
+              {anim.hədiyyə.emoji} +{anim.hədiyyə.qiymət}
+            </div>
+          ))}
+        </div>
       </div>
 
-      {!yayımModu && user && (
-        <div className="yayim-form">
-          <h3>Canlı Yayım Başlat</h3>
-          <input
-            type="text"
-            placeholder="Yayım başlığı"
-            value={başlıq}
-            onChange={(e) => setBaşlıq(e.target.value)}
-            maxLength={100}
-          />
-          <textarea
-            placeholder="Təsvir (optional)"
-            value={təsvir}
-            onChange={(e) => setTəsvir(e.target.value)}
-            maxLength={300}
-            rows={3}
-          />
-          <button onClick={yayımBaşlat} className="start-yayim-btn">
-            Yayımı Başlat 🎥 (50 🪙)
-          </button>
+      {/* Yayım məlumatları və chat */}
+      <div className="yayim-sidebar">
+        <div className="yayim-header-info">
+          <h2>{aktivYayım.başlıq}</h2>
+          <div className="yayim-stats">
+            <span>🔴 CANLI</span>
+            <span>👥 {izləyiciSayı}</span>
+          </div>
+          <div className="yayimci-info">
+            {aktivYayım.yayımçı?.profil?.avatar && (
+              <img src={aktivYayım.yayımçı.profil.avatar} alt="" className="yayimci-avatar" />
+            )}
+            <span>{aktivYayım.yayımçı?.istifadəçiAdı || 'Anonim'}</span>
+          </div>
         </div>
-      )}
 
-      <div className="yayim-grid">
-        {yayımlar.length === 0 ? (
-          <p className="no-yayim">Hazırda aktiv yayım yoxdur</p>
-        ) : (
-          yayımlar.map((yayım) => (
-            <div key={yayım._id} className="yayim-card" onClick={() => yayımaQoşul(yayım)}>
-              <div className="yayim-thumbnail">
-                <span className="live-badge">🔴 CANLI</span>
-                {yayım.pkStatus?.aktiv && (
-                  <span className="pk-badge">⚔️ PK</span>
-                )}
+        {/* Chat */}
+        <div className="chat-container">
+          <div className="chat-messages">
+            {chatMesajlar.map((msg, idx) => (
+              <div key={idx} className="chat-message">
+                <span className="chat-user">{msg.istifadəçiAdı}:</span>
+                <span className="chat-text">{msg.mesaj}</span>
               </div>
-              <div className="yayim-info">
-                <h4>{yayım.başlıq}</h4>
-                <p>{yayım.yayımçı?.istifadəçiAdı}</p>
-                <span>👁️ {yayım.izləyicilər?.length || 0} izləyici</span>
-              </div>
+            ))}
+          </div>
+
+          <form className="chat-input" onSubmit={mesajGöndər}>
+            <input
+              type="text"
+              placeholder="Mesaj yaz..."
+              value={chatMesaj}
+              onChange={(e) => setChatMesaj(e.target.value)}
+            />
+            <button type="submit">📤</button>
+          </form>
+        </div>
+
+        {/* Hədiyyələr */}
+        <div className="hediyye-section">
+          <button 
+            className="hediyye-btn"
+            onClick={() => setHədiyyəPaneliAçıq(!hədiyyəPaneliAçıq)}
+          >
+            🎁 Hədiyyə Göndər
+          </button>
+
+          {hədiyyəPaneliAçıq && (
+            <div className="hediyye-grid">
+              {hədiyyələr.map(hədiyyə => (
+                <div 
+                  key={hədiyyə.id} 
+                  className="hediyye-item"
+                  onClick={() => hədiyyəGöndər(hədiyyə)}
+                >
+                  <span className="hediyye-emoji">{hədiyyə.emoji}</span>
+                  <span className="hediyye-ad">{hədiyyə.ad}</span>
+                  <span className="hediyye-qiymet">🪙 {hədiyyə.qiymət}</span>
+                </div>
+              ))}
             </div>
-          ))
+          )}
+        </div>
+
+        {/* Yayımçı kontrolları */}
+        {yayımModu && (
+          <div className="yayimci-controls">
+            <button className="bitir-btn" onClick={yayımıBitir}>
+              ⏹️ Yayımı Bitir
+            </button>
+          </div>
+        )}
+
+        {/* Geri dön */}
+        {!yayımModu && (
+          <button className="geri-btn" onClick={() => {
+            setAktivYayım(null);
+            socket.emit('canli-yayimdan-ayril', { yayımId: aktivYayım._id, userId: user.id });
+          }}>
+            ⬅️ Geri
+          </button>
         )}
       </div>
     </div>

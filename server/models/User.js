@@ -38,6 +38,7 @@ const userSchema = new mongoose.Schema({
   }],
   profil: {
     avatar: { type: String, default: '' },
+    avatarType: { type: String, enum: ['image', 'gif'], default: 'image' },
     bio: { type: String, default: '', maxlength: 500 }
   },
   statistika: {

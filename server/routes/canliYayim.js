@@ -48,7 +48,7 @@ router.get('/:id', async (req, res) => {
 // Yeni canlı yayım başlat
 router.post('/', authYoxla, jetonYoxla(CANLI_YAYIM_QIYMƏT), async (req, res) => {
   try {
-    const { başlıq, təsvir } = req.body;
+    const { başlıq, təsvir, yayımURL } = req.body;
 
     if (!başlıq || başlıq.trim().length === 0) {
       return res.status(400).json({ xəta: 'Başlıq daxil edin' });
@@ -62,6 +62,7 @@ router.post('/', authYoxla, jetonYoxla(CANLI_YAYIM_QIYMƏT), async (req, res) =>
       yayımçı: req.user._id,
       başlıq: başlıq.trim(),
       təsvir: təsvir || '',
+      yayımURL: yayımURL || '',
       status: 'canlı',
       başlamaTarixi: new Date()
     });

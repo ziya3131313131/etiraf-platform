@@ -141,6 +141,37 @@ router.put('/profil', authYoxla, async (req, res) => {
   }
 });
 
+// Profil şəkli yüklə (base64 və ya URL)
+router.post('/profil/sekil', authYoxla, async (req, res) => {
+  try {
+    const { avatar, avatarType } = req.body;
+    
+    if (!avatar) {
+      return res.status(400).json({ xəta: 'Şəkil məlumatı göndərilmədi' });
+    }
+
+    const user = await User.findById(req.user._id);
+    
+    // GIF yalnız admin və moderator üçün
+    if (avatarType === 'gif' && user.rol === 'istifadəçi') {
+      return res.status(403).json({ xəta: 'GIF yalnız admin və moderator üçündür' });
+    }
+    
+    user.profil.avatar = avatar;
+    user.profil.avatarType = avatarType || 'image';
+    
+    await user.save();
+    
+    res.json({ 
+      mesaj: 'Profil şəkli yeniləndi', 
+      avatar: user.profil.avatar,
+      avatarType: user.profil.avatarType
+    });
+  } catch (error) {
+    res.status(500).json({ xəta: error.message });
+  }
+});
+
 // Token-i yoxla (frontend üçün)
 router.get('/yoxla', authYoxla, (req, res) => {
   res.json({ 
