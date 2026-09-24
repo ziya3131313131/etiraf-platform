@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
+import { API_BASE } from '../config';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = API_BASE;
 
 function Destek() {
   const { user } = useAuth();

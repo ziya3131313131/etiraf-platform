@@ -3,9 +3,10 @@ import { useAuth } from '../context/AuthContext';
 import io from 'socket.io-client';
 import axios from 'axios';
 import { getHediyyeList } from '../utils/hediyyeler';
+import { API_URL as BASE_URL, API_BASE } from '../config';
 
-const API_URL = 'http://localhost:5000/api';
-const socket = io('http://localhost:5000');
+const API_URL = API_BASE;
+const socket = io(BASE_URL);
 
 function CanliYayim() {
   const { user, jetonYenilə } = useAuth();

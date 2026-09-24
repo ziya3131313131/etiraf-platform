@@ -8,9 +8,10 @@ import Login from './components/Login';
 import AdminPanel from './components/AdminPanel';
 import CanliYayim from './components/CanliYayim';
 import Destek from './components/Destek';
+import { API_URL as BASE_URL, API_BASE } from './config';
 
-const API_URL = 'http://localhost:5000/api';
-const socket = io('http://localhost:5000');
+const API_URL = API_BASE;
+const socket = io(BASE_URL);
 
 function AppContent() {
   const { user, loading: authLoading, authenticated, çıxış, isAdmin } = useAuth();
