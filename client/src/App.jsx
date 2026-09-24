@@ -8,7 +8,8 @@ import Login from './components/Login';
 import AdminPanel from './components/AdminPanel';
 import CanliYayim from './components/CanliYayim';
 import Destek from './components/Destek';
-import ProfilPanel from './components/ProfilPanel';
+import ProfilModal from './components/ProfilModal';
+import Bildirislər from './components/Bildirislər';
 import { API_URL as BASE_URL, API_BASE } from './config';
 
 const API_URL = API_BASE;
@@ -21,10 +22,15 @@ function AppContent() {
   const [loading, setLoading] = useState(true);
   const [səhifə, setSəhifə] = useState('etiraflar'); // 'etiraflar', 'canli', 'admin', 'destek'
   const [profilPanelAçıq, setProfilPanelAçıq] = useState(false);
+  const [bildirislərAçıq, setBildirislərAçıq] = useState(false);
+  const [oxunmayanBildiriş, setOxunmayanBildiriş] = useState(0);
 
   useEffect(() => {
     // İlk etirafları yüklə
     fetchEtiraflar();
+    
+    // Bildirişləri yüklə
+    loadBildirislərCount();
 
     // Socket.IO event listeners
     socket.on('yeni-etiraf', (yeniEtiraf) => {
@@ -59,6 +65,23 @@ function AppContent() {
     socket.on('istifadeci-sayi', (sayi) => {
       setOnlineUsers(sayi);
     });
+    
+    // Yeni bildiriş gələndə
+    socket.on('yeni-bildiris', (bildiris) => {
+      console.log('🔔 Yeni bildiriş:', bildiris);
+      setOxunmayanBildiriş(prev => prev + 1);
+      
+      // Səs effekti
+      if (localStorage.getItem('səsEffektləri') !== 'false') {
+        // Browser notification API
+        if (Notification.permission === 'granted') {
+          new Notification(bildiris.başlıq, {
+            body: bildiris.mesaj,
+            icon: '/icon-192x192.png'
+          });
+        }
+      }
+    });
 
     return () => {
       socket.off('yeni-etiraf');
@@ -66,8 +89,22 @@ function AppContent() {
       socket.off('yeni-serh');
       socket.off('etiraf-silindi');
       socket.off('istifadeci-sayi');
+      socket.off('yeni-bildiris');
     };
   }, []);
+  
+  const loadBildirislərCount = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_URL}/auth/bildirislər`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const oxunmayan = response.data.filter(b => !b.oxundu).length;
+      setOxunmayanBildiriş(oxunmayan);
+    } catch (error) {
+      console.error('Bildiriş sayı yüklənərkən xəta:', error);
+    }
+  };
 
   const fetchEtiraflar = async () => {
     try {
@@ -104,6 +141,15 @@ function AppContent() {
     } catch (error) {
       console.error('Şərh göndərilərkən xəta:', error);
       throw error;
+    }
+  };
+
+  const handleBeyenme = async (etirafId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API_URL}/etiraf/${etirafId}/beyenme`, { token });
+    } catch (error) {
+      console.error('Bəyənmə zamanı xəta:', error);
     }
   };
 
@@ -163,6 +209,36 @@ function AppContent() {
           )}
         </div>
         <div className="nav-user">
+          {/* Dark Mode Toggle */}
+          <button 
+            className="theme-toggle"
+            onClick={() => {
+              const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+              const newTheme = isDark ? 'light' : 'dark';
+              document.documentElement.setAttribute('data-theme', newTheme);
+              localStorage.setItem('darkMode', !isDark);
+            }}
+            title="Qaranlıq/İşıqlı rejim"
+          >
+            {document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙'}
+          </button>
+          
+          {/* Bildirişlər */}
+          <button 
+            className="theme-toggle"
+            onClick={() => {
+              setBildirislərAçıq(true);
+              setOxunmayanBildiriş(0);
+            }}
+            title="Bildirişlər"
+            style={{ position: 'relative' }}
+          >
+            🔔
+            {oxunmayanBildiriş > 0 && (
+              <span className="notification-badge">{oxunmayanBildiriş}</span>
+            )}
+          </button>
+          
           {/* Profil şəkli */}
           <div className="user-avatar-container" onClick={() => setProfilPanelAçıq(true)}>
             {user?.profil?.avatar ? (
@@ -184,9 +260,14 @@ function AppContent() {
         </div>
       </nav>
 
-      {/* Profil Paneli */}
+      {/* Profil Modal */}
       {profilPanelAçıq && (
-        <ProfilPanel onClose={() => setProfilPanelAçıq(false)} />
+        <ProfilModal onClose={() => setProfilPanelAçıq(false)} />
+      )}
+      
+      {/* Bildirişlər Modal */}
+      {bildirislərAçıq && (
+        <Bildirislər onClose={() => setBildirislərAçıq(false)} />
       )}
 
       <div className="container">
@@ -212,6 +293,7 @@ function AppContent() {
                   <EtirafCard
                     key={etiraf._id}
                     etiraf={etiraf}
+                    onBeyenme={handleBeyenme}
                     onSerh={handleSerh}
                     onSil={handleEtirafSil}
                   />

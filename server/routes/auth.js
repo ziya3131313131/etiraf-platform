@@ -123,19 +123,185 @@ router.get('/profil', authYoxla, async (req, res) => {
   }
 });
 
-// Profili yenilə
+// Profili yenilə (genişləndirilmiş)
 router.put('/profil', authYoxla, async (req, res) => {
   try {
-    const { bio, avatar } = req.body;
+    const { profil } = req.body;
     
     const user = await User.findById(req.user._id);
     
-    if (bio !== undefined) user.profil.bio = bio;
-    if (avatar !== undefined) user.profil.avatar = avatar;
+    if (profil) {
+      if (profil.bio !== undefined) user.profil.bio = profil.bio;
+      if (profil.avatar !== undefined) user.profil.avatar = profil.avatar;
+      if (profil.banner !== undefined) user.profil.banner = profil.banner;
+      if (profil.haqqında !== undefined) user.profil.haqqında = profil.haqqında;
+      if (profil.statusMesaj !== undefined) user.profil.statusMesaj = profil.statusMesaj;
+      if (profil.spotify !== undefined) user.profil.spotify = profil.spotify;
+      if (profil.rəng !== undefined) user.profil.rəng = profil.rəng;
+    }
     
     await user.save();
     
-    res.json({ mesaj: 'Profil yeniləndi', user });
+    const updatedUser = await User.findById(user._id).select('-şifrə');
+    res.json(updatedUser);
+  } catch (error) {
+    res.status(500).json({ xəta: error.message });
+  }
+});
+
+// İstifadəçi məlumatlarını gətir (ID ilə)
+router.get('/user/:id', authYoxla, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select('-şifrə');
+    if (!user) {
+      return res.status(404).json({ xəta: 'İstifadəçi tapılmadı' });
+    }
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ xəta: error.message });
+  }
+});
+
+// Badge əlavə et (admin/mod)
+router.post('/badge/add', authYoxla, async (req, res) => {
+  try {
+    // Yalnız admin və moderator
+    if (req.user.rol !== 'admin' && req.user.rol !== 'moderator') {
+      return res.status(403).json({ xəta: 'İcazəniz yoxdur' });
+    }
+
+    const { istifadəçiId, badge } = req.body;
+    const user = await User.findById(istifadəçiId);
+    
+    if (!user) {
+      return res.status(404).json({ xəta: 'İstifadəçi tapılmadı' });
+    }
+
+    if (!user.badges) user.badges = [];
+    user.badges.push({
+      ad: badge.ad,
+      emoji: badge.emoji,
+      şəkil: badge.şəkil,
+      rəng: badge.rəng,
+      tarix: new Date()
+    });
+
+    // Fəaliyyət əlavə et
+    if (!user.fəaliyyətlər) user.fəaliyyətlər = [];
+    user.fəaliyyətlər.unshift({
+      növ: 'badge',
+      təsvir: `🏆 ${badge.ad} badge alındı`,
+      tarix: new Date()
+    });
+
+    await user.save();
+    res.json({ mesaj: 'Badge əlavə edildi', user });
+  } catch (error) {
+    res.status(500).json({ xəta: error.message });
+  }
+});
+
+// Badge sil (admin/mod)
+router.post('/badge/remove', authYoxla, async (req, res) => {
+  try {
+    if (req.user.rol !== 'admin' && req.user.rol !== 'moderator') {
+      return res.status(403).json({ xəta: 'İcazəniz yoxdur' });
+    }
+
+    const { istifadəçiId, badgeIndex } = req.body;
+    const user = await User.findById(istifadəçiId);
+    
+    if (!user || !user.badges || !user.badges[badgeIndex]) {
+      return res.status(404).json({ xəta: 'Badge tapılmadı' });
+    }
+
+    user.badges.splice(badgeIndex, 1);
+    await user.save();
+    
+    res.json({ mesaj: 'Badge silindi' });
+  } catch (error) {
+    res.status(500).json({ xəta: error.message });
+  }
+});
+
+// Achievement unlock et
+router.post('/achievement/unlock', authYoxla, async (req, res) => {
+  try {
+    const { achievementId, ad, təsvir, emoji } = req.body;
+    const user = await User.findById(req.user._id);
+
+    if (!user.achievements) user.achievements = [];
+    
+    // Artıq varsa, yenidən əlavə etmə
+    const mövcud = user.achievements.find(a => a.id === achievementId);
+    if (mövcud) {
+      return res.json({ mesaj: 'Artıq mövcuddur' });
+    }
+
+    user.achievements.push({
+      id: achievementId,
+      ad,
+      təsvir,
+      emoji,
+      unlockTarixi: new Date()
+    });
+
+    // Fəaliyyət əlavə et
+    if (!user.fəaliyyətlər) user.fəaliyyətlər = [];
+    user.fəaliyyətlər.unshift({
+      növ: 'achievement',
+      təsvir: `⭐ ${ad} nailiyyəti açıldı`,
+      tarix: new Date()
+    });
+
+    await user.save();
+    res.json({ mesaj: 'Achievement unlocked!', achievement: user.achievements[user.achievements.length - 1] });
+  } catch (error) {
+    res.status(500).json({ xəta: error.message });
+  }
+});
+
+// Bildirişləri gətir
+router.get('/bildirislər', authYoxla, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('bildirişlər');
+    res.json(user.bildirişlər || []);
+  } catch (error) {
+    res.status(500).json({ xəta: error.message });
+  }
+});
+
+// Bildirişi oxunmuş et
+router.post('/bildiris/oxu', authYoxla, async (req, res) => {
+  try {
+    const { bildirişId } = req.body;
+    const user = await User.findById(req.user._id);
+    
+    const bildiris = user.bildirişlər.id(bildirişId);
+    if (bildiris) {
+      bildiris.oxundu = true;
+      await user.save();
+    }
+    
+    res.json({ mesaj: 'Oxundu' });
+  } catch (error) {
+    res.status(500).json({ xəta: error.message });
+  }
+});
+
+// Bütün bildirişləri oxunmuş et
+router.post('/bildiris/hamisini-oxu', authYoxla, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    
+    if (user.bildirişlər) {
+      user.bildirişlər.forEach(b => {
+        b.oxundu = true;
+      });
+      await user.save();
+    }
+    
+    res.json({ mesaj: 'Hamısı oxundu' });
   } catch (error) {
     res.status(500).json({ xəta: error.message });
   }

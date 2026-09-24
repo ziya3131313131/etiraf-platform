@@ -39,8 +39,49 @@ const userSchema = new mongoose.Schema({
   profil: {
     avatar: { type: String, default: '' },
     avatarType: { type: String, enum: ['image', 'gif'], default: 'image' },
-    bio: { type: String, default: '', maxlength: 500 }
+    banner: { type: String, default: '' }, // Discord-style banner
+    bio: { type: String, default: '', maxlength: 500 },
+    haqqında: { type: String, default: '', maxlength: 1000 },
+    statusMesaj: { type: String, default: '🎭', maxlength: 100 },
+    spotify: { type: String, default: '' }, // Spotify profil linki
+    rəng: { type: String, default: '#6366f1' } // Profil rəngi
   },
+  badges: [{
+    ad: String,
+    emoji: String,
+    şəkil: String, // GIF və ya foto URL
+    rəng: String,
+    tarix: { type: Date, default: Date.now }
+  }],
+  achievements: [{
+    id: String,
+    ad: String,
+    təsvir: String,
+    emoji: String,
+    unlockTarixi: { type: Date, default: Date.now }
+  }],
+  parametrlər: {
+    darkMode: { type: Boolean, default: false },
+    dil: { type: String, default: 'az', enum: ['az', 'en', 'tr'] },
+    bildirişlər: { type: Boolean, default: true },
+    səsEffektləri: { type: Boolean, default: true },
+    xüsusiRəng: { type: String, default: '#6366f1' },
+    tema: { type: String, default: 'default', enum: ['default', 'ocean', 'sunset', 'forest', 'galaxy'] }
+  },
+  bildirişlər: [{
+    növ: { type: String, enum: ['beğenme', 'şerh', 'badge', 'achievement', 'hediyye', 'mesaj', 'sistem'] },
+    başlıq: String,
+    mesaj: String,
+    link: String,
+    oxundu: { type: Boolean, default: false },
+    tarix: { type: Date, default: Date.now }
+  }],
+  fəaliyyətlər: [{
+    növ: { type: String, enum: ['etiraf', 'şerh', 'beğenme', 'canli', 'hediyye', 'pk', 'badge', 'achievement'] },
+    təsvir: String,
+    link: String,
+    tarix: { type: Date, default: Date.now }
+  }],
   statistika: {
     etirafSayı: { type: Number, default: 0 },
     şərhSayı: { type: Number, default: 0 },

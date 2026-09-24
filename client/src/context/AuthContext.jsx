@@ -95,7 +95,7 @@ export const AuthProvider = ({ children }) => {
   const profilYenilə = async (məlumatlar) => {
     try {
       const response = await axios.put(`${API_URL}/auth/profil`, məlumatlar);
-      setUser(response.data.user);
+      setUser(response.data);
       return { success: true };
     } catch (error) {
       return { 
@@ -103,6 +103,10 @@ export const AuthProvider = ({ children }) => {
         xəta: error.response?.data?.xəta || 'Profil yenilənərkən xəta baş verdi' 
       };
     }
+  };
+
+  const updateUser = (yeniUser) => {
+    setUser(yeniUser);
   };
 
   const jetonYenilə = async () => {
@@ -123,6 +127,7 @@ export const AuthProvider = ({ children }) => {
     çıxış,
     profilYenilə,
     jetonYenilə,
+    updateUser,
     isAdmin: user?.rol === 'admin',
     isModerator: user?.rol === 'moderator' || user?.rol === 'admin'
   };

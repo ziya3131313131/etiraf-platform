@@ -82,6 +82,13 @@ function EtirafCard({ etiraf, onBeyenme, onSerh, onSil }) {
 
       <div className="etiraf-actions">
         <button 
+          className="action-btn"
+          onClick={() => onBeyenme && onBeyenme(etiraf._id)}
+        >
+          ❤️ {etiraf.bəyənilmələr || 0}
+        </button>
+        
+        <button 
           className={`action-btn ${serhAciq ? 'active' : ''}`}
           onClick={() => setSerhAciq(!serhAciq)}
         >

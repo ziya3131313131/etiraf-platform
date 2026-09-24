@@ -62,6 +62,18 @@ router.post('/', async (req, res) => {
           
           // İstifadəçi statistikası
           user.statistika.etirafSayı += 1;
+          
+          // Fəaliyyət əlavə et
+          if (!user.fəaliyyətlər) user.fəaliyyətlər = [];
+          user.fəaliyyətlər.unshift({
+            növ: 'etiraf',
+            təsvir: `💭 Yeni etiraf paylaşdı: "${başlıq}"`,
+            tarix: new Date()
+          });
+          if (user.fəaliyyətlər.length > 100) {
+            user.fəaliyyətlər = user.fəaliyyətlər.slice(0, 100);
+          }
+          
           await user.save();
         }
       } catch (err) {
@@ -90,6 +102,7 @@ router.post('/', async (req, res) => {
 // Etirafı bəyən
 router.post('/:id/beyenme', async (req, res) => {
   try {
+    const { token } = req.body;
     const etiraf = await Etiraf.findByIdAndUpdate(
       req.params.id,
       { $inc: { bəyənilmələr: 1 } },
@@ -98,6 +111,66 @@ router.post('/:id/beyenme', async (req, res) => {
     
     if (!etiraf) {
       return res.status(404).json({ xəta: 'Etiraf tapılmadı' });
+    }
+
+    // Bəyənən istifadəçini tap
+    let beğenenAdı = 'Anonim';
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'etiraf-secret-key-2024');
+        const beğenen = await User.findById(decoded.userId);
+        if (beğenen) {
+          beğenenAdı = beğenen.istifadəçiAdı;
+          
+          // Fəaliyyət əlavə et
+          if (!beğenen.fəaliyyətlər) beğenen.fəaliyyətlər = [];
+          beğenen.fəaliyyətlər.unshift({
+            növ: 'beğenme',
+            təsvir: `❤️ "${etiraf.başlıq}" etirafını bəyəndi`,
+            link: `/etiraf/${etiraf._id}`,
+            tarix: new Date()
+          });
+          
+          // Son 100 fəaliyyəti saxla
+          if (beğenen.fəaliyyətlər.length > 100) {
+            beğenen.fəaliyyətlər = beğenen.fəaliyyətlər.slice(0, 100);
+          }
+          
+          await beğenen.save();
+        }
+      } catch (err) {
+        console.error('Token xətası:', err);
+      }
+    }
+
+    // Etiraf müəllifinə bildiriş göndər
+    if (etiraf.müəllif && !etiraf.anonim) {
+      const müəllif = await User.findById(etiraf.müəllif);
+      if (müəllif) {
+        // Statistika yenilə
+        müəllif.statistika.bəyənilmələr = (müəllif.statistika.bəyənilmələr || 0) + 1;
+        
+        // Bildiriş əlavə et
+        if (!müəllif.bildirişlər) müəllif.bildirişlər = [];
+        müəllif.bildirişlər.unshift({
+          növ: 'beğenme',
+          başlıq: '❤️ Yeni Bəyənmə',
+          mesaj: `${beğenenAdı} etirafını bəyəndi: "${etiraf.başlıq}"`,
+          link: `/etiraf/${etiraf._id}`,
+          oxundu: false,
+          tarix: new Date()
+        });
+        
+        // Son 50 bildirişi saxla
+        if (müəllif.bildirişlər.length > 50) {
+          müəllif.bildirişlər = müəllif.bildirişlər.slice(0, 50);
+        }
+        
+        await müəllif.save();
+        
+        // Real-time bildiriş
+        io.to(`user-${müəllif._id}`).emit('yeni-bildiris', müəllif.bildirişlər[0]);
+      }
     }
 
     // Real-time: Bəyənilmə yenilənməsini göndər
@@ -132,6 +205,8 @@ router.post('/:id/serh', async (req, res) => {
       tarix: new Date()
     };
 
+    let şərhçiAdı = 'Anonim';
+
     // Token varsa, müəllif məlumatlarını əlavə et
     if (token) {
       try {
@@ -140,9 +215,23 @@ router.post('/:id/serh', async (req, res) => {
         if (user) {
           yeniSerh.müəllif = user._id;
           yeniSerh.müəllifAdı = user.istifadəçiAdı;
+          şərhçiAdı = user.istifadəçiAdı;
           
           // İstifadəçi statistikası
           user.statistika.şərhSayı += 1;
+          
+          // Fəaliyyət əlavə et
+          if (!user.fəaliyyətlər) user.fəaliyyətlər = [];
+          user.fəaliyyətlər.unshift({
+            növ: 'şerh',
+            təsvir: `💬 "${etiraf.başlıq}" etirafına şərh yazdı`,
+            link: `/etiraf/${etiraf._id}`,
+            tarix: new Date()
+          });
+          if (user.fəaliyyətlər.length > 100) {
+            user.fəaliyyətlər = user.fəaliyyətlər.slice(0, 100);
+          }
+          
           await user.save();
         }
       } catch (err) {
@@ -155,6 +244,32 @@ router.post('/:id/serh', async (req, res) => {
     
     // Müəllif məlumatını populate et
     await etiraf.populate('şərhlər.müəllif', 'istifadəçiAdı profil');
+
+    // Etiraf müəllifinə bildiriş göndər
+    if (etiraf.müəllif && !etiraf.anonim) {
+      const müəllif = await User.findById(etiraf.müəllif);
+      if (müəllif) {
+        // Bildiriş əlavə et
+        if (!müəllif.bildirişlər) müəllif.bildirişlər = [];
+        müəllif.bildirişlər.unshift({
+          növ: 'şerh',
+          başlıq: '💬 Yeni Şərh',
+          mesaj: `${şərhçiAdı} etirafına şərh yazdı: "${etiraf.başlıq}"`,
+          link: `/etiraf/${etiraf._id}`,
+          oxundu: false,
+          tarix: new Date()
+        });
+        
+        if (müəllif.bildirişlər.length > 50) {
+          müəllif.bildirişlər = müəllif.bildirişlər.slice(0, 50);
+        }
+        
+        await müəllif.save();
+        
+        // Real-time bildiriş
+        io.to(`user-${müəllif._id}`).emit('yeni-bildiris', müəllif.bildirişlər[0]);
+      }
+    }
 
     // Real-time: Yeni şərhi göndər
     io.emit('yeni-serh', { 

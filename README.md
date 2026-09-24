@@ -1,6 +1,91 @@
-# 💭 Etiraf Platforması - TAM VERSİYA
+# 💭 Etiraf Platforması - PREMIUM VERSİYA
 
-Real-time etiraf platforması. Canlı yayım, PK, hədiyyələr, səs/video kontrolları və tam funksional admin paneli!
+Real-time etiraf platforması. 100+ premium funksiya, Discord-style profillər, dark mode, achievements və daha çox!
+
+## ✨ Premium Xüsusiyyətlər (YENİ!)
+
+### 🎨 **Discord-Style Profil Sistemi**
+- ✅ **Banner şəkli** - Profil üçün xüsusi banner
+- ✅ **Badge sistemi** - Admin/moderator tərəfindən verilə bilər (GIF/foto dəstəyi)
+- ✅ **Haqqında** - 1000 simvolluq bio
+- ✅ **Status mesajı** - Emoji ilə status (100 simvol)
+- ✅ **Spotify inteqrasiyası** - Profildə musiqi linki
+- ✅ **Profil rəngi** - Xüsusi rəng seçimi
+- ✅ **Statistika kartları** - Etiraf, şərh, bəyənmə, jeton
+- ✅ **6 tab** - Haqqında, Achievements, Fəaliyyət, Parametrlər, Paylaşım, Admin
+
+### 🏆 **Achievement Sistemi (20 Nailiyyət)**
+- ✅ İlk Etiraf 🎉
+- ✅ 5, 10, 50, 100 Etiraf ⭐🌟💫🏆
+- ✅ Söhbətçi, Aktiv İştirakçı, Şərh Ustası 💬💭🗨️
+- ✅ Sevimli, Populyar, İdol ❤️💖🌹
+- ✅ Yayımçı, Streamer 📹🎬
+- ✅ PK Qalib, PK Ustası 🏅👑
+- ✅ Cömürd, Dəstəkçi 🎁💝
+- ✅ Varlı, Milyoner 💰💎
+- ✅ Bir Həftəlik, Veteran 🎊🎖️
+- ✅ **Avtomatik unlock** - Şərtlər yerinə yetirildikdə
+
+### 🔔 **Real-Time Bildiriş Sistemi**
+- ✅ **7 növ bildiriş**: Bəyənmə, Şərh, Badge, Achievement, Hədiyyə, Mesaj, Sistem
+- ✅ **Oxunmuş/oxunmamış** status
+- ✅ **Browser notification** API
+- ✅ **Real-time** Socket.IO ilə
+- ✅ **Navbar badge** - Oxunmamış say
+- ✅ **Səs effektləri** (parametrlərdən söndürülə bilər)
+- ✅ Link ilə keçid
+
+### 📊 **Fəaliyyət Timeline**
+- ✅ **8 növ fəaliyyət**: Etiraf, Şərh, Bəyənmə, Canlı, Hədiyyə, PK, Badge, Achievement
+- ✅ **Son 100 fəaliyyət** saxlanılır
+- ✅ **Real-time tracking** - Hər əməliyyat qeyd olunur
+- ✅ **Tarix damğası** - Dəqiq vaxt
+- ✅ **Link ilə keçid** - Fəaliyyətə tıklama
+
+### 🌙 **Dark Mode & Tema Sistemi**
+- ✅ **Qaranlıq/İşıqlı rejim** - Toggle düyməsi
+- ✅ **8 müxtəlif tema**:
+  - 🔵 Default (Bənövşəyi)
+  - 🌊 Okean (Mavi)
+  - 🌅 Günəş (Narıncı-Sarı)
+  - 🌲 Meşə (Yaşıl)
+  - 🌌 Qalaktika (Bənövşəyi-Mavi)
+  - 🔥 Alov (Qırmızı-Narıncı)
+  - 💜 Bənövşəyi (Pembe)
+  - 🍃 Mint (Açıq Mavi)
+- ✅ **localStorage** - Seçim yadda qalır
+- ✅ **Smooth transition** - Animasiyon ilə keçid
+- ✅ **Bütün komponentlər** dark mode dəstəyi
+
+### ⚙️ **Settings Panel (Parametrlər)**
+- ✅ **Qaranlıq rejim** - On/Off
+- ✅ **Bildirişlər** - Push notification
+- ✅ **Səs effektləri** - Hədiyyə/bildiriş səsləri
+- ✅ **Tema seçimi** - 8 variant
+- ✅ Toggle switch UI
+- ✅ localStorage inteqrasiyası
+
+### 🔗 **Profil Paylaşımı**
+- ✅ **Unikal link** - /profil/{userId}
+- ✅ **Kopyala düyməsi** - Clipboard API
+- ✅ **Sosial media paylaşımı**:
+  - 💬 WhatsApp
+  - ✈️ Telegram  
+  - 🐦 Twitter/X
+- ✅ **Profil preview** - Avatar, ad, status
+- ✅ QR kod (gələcək funksiya)
+
+### 🎨 **Badge Management (Admin/Mod)**
+- ✅ **Yalnız admin/moderator** əlavə edə bilər
+- ✅ **GIF və foto dəstəyi**
+- ✅ **Badge məlumatları**:
+  - Ad
+  - Emoji
+  - Şəkil URL (GIF/foto)
+  - Rəng
+  - Verilmə tarixi
+- ✅ **Silmə imkanı** - Admin/mod silə bilər
+- ✅ **Profildə görünmə** - Badge card-ları
 
 ## ✨ Əsas Xüsusiyyətlər
 
@@ -153,8 +238,15 @@ Server ilk dəfə işə düşəndə avtomatik admin yaradılır:
 POST /api/auth/qeydiyyat  - Qeydiyyat (ad + şifrə)
 POST /api/auth/giris      - Giriş
 GET  /api/auth/profil     - Profil məlumatları
-PUT  /api/auth/profil     - Profil yenilə
+PUT  /api/auth/profil     - Profil yenilə (genişləndirilmiş)
 GET  /api/auth/yoxla      - Token yoxla
+GET  /api/auth/user/:id   - İstifadəçi məlumatı (ID ilə)
+POST /api/auth/badge/add      - Badge əlavə et (admin/mod)
+POST /api/auth/badge/remove   - Badge sil (admin/mod)
+POST /api/auth/achievement/unlock - Achievement unlock
+GET  /api/auth/bildirislər        - Bildirişləri gətir
+POST /api/auth/bildiris/oxu       - Bildirişi oxunmuş et
+POST /api/auth/bildiris/hamisini-oxu - Hamısını oxunmuş et
 ```
 
 ### Etiraflar
@@ -210,6 +302,7 @@ DELETE /api/admin/etiraf/:id         - Etirafı sil
 'pk-basladi'          - PK başladı
 'pk-bitdi'            - PK bitdi
 'konuk-media-deyisdi' - Konuk səs/video dəyişdi
+'yeni-bildiris'       - Yeni bildiriş (real-time)
 ```
 
 ### Client → Server
@@ -253,7 +346,9 @@ etiraf/
 │   │   │   ├── Login.jsx
 │   │   │   ├── EtirafForm.jsx
 │   │   │   ├── EtirafCard.jsx
-│   │   │   ├── CanliYayim.jsx   - Tam funksional
+│   │   │   ├── CanliYayim.jsx     - Tam funksional
+│   │   │   ├── ProfilModal.jsx    - YENİ! Discord-style
+│   │   │   ├── Bildirislər.jsx    - YENİ! Notifications
 │   │   │   ├── AdminPanel.jsx
 │   │   │   └── Destek.jsx
 │   │   ├── context/
@@ -338,15 +433,36 @@ Paylaş → "Ana ekrana əlavə et"
 ## 🎉 Xüsusiyyətlər
 
 - 🚀 Tam real-time
-- 🎨 Modern UI/UX
+- 🎨 Modern UI/UX + Dark Mode
 - 📱 Mobil responsiv
 - 🔐 Təhlükəsiz
 - ⚡ Sürətli
 - 💰 Jeton iqtisadiyyatı
-- 🎁 Hədiyyə sistemi
+- 🎁 Hədiyyə sistemi (12 hədiyyə)
 - ⚔️ PK sistemi
 - 👥 Multi-host
 - 🎤 Səs/video kontrolları
+- 🏆 Achievement sistemi (20 nailiyyət)
+- 🔔 Real-time bildirişlər
+- 📊 Fəaliyyət timeline
+- 🎨 8 tema seçimi
+- 🔗 Profil paylaşımı
+- 🏅 Badge sistemi (admin/mod)
+- 🌙 Dark/Light mode
+- ⚙️ Settings panel
+
+## 🎊 Yeni Funksiyalar (2024)
+
+✅ **Discord-style profil sistemi** - Banner, badges, achievements  
+✅ **Dark mode** - Gözləri yormayan qaranlıq tema  
+✅ **8 tema** - Default, Ocean, Sunset, Forest, Galaxy, Fire, Purple, Mint  
+✅ **Real-time bildirişlər** - Browser notification, Socket.IO  
+✅ **Achievement sistemi** - 20 avtomatik açılan nailiyyət  
+✅ **Fəaliyyət timeline** - Son 100 əməliyyat  
+✅ **Badge management** - Admin/mod tərəfindən GIF/foto badge-lər  
+✅ **Profil paylaşımı** - WhatsApp, Telegram, Twitter inteqrasiyası  
+✅ **Settings panel** - Bildiriş, səs, tema parametrləri  
+✅ **Bəyənmə tracking** - Kim bəyəndi, real-time yenilənmə  
 
 ## 📝 Lisenziya
 
@@ -360,3 +476,20 @@ Kiro AI ilə hazırlanıb ❤️
 ---
 
 **Bütün funksiyalar REAL işləyir! 🎊**
+
+
+---
+
+## 🎊 100+ Premium Funksiya Əlavə Edildi!
+
+✨ **Discord-style profillər** - Banner, badges, bio, status  
+🌙 **Dark Mode** - Qaranlıq/İşıqlı rejim  
+🎨 **8 Tema** - Müxtəlif rəng sxemləri  
+🏆 **20 Achievement** - Avtomatik unlock sistemi  
+🔔 **Real-time bildirişlər** - Browser notification  
+📊 **Fəaliyyət timeline** - Son 100 əməliyyat  
+🏅 **Badge sistemi** - Admin/mod tərəfindən GIF/foto  
+🔗 **Profil paylaşımı** - Sosial media inteqrasiyası  
+⚙️ **Settings panel** - Parametrlər idarəetməsi  
+
+**Platformanı daha da xüsusi edən 100+ funksiya! 🚀**
