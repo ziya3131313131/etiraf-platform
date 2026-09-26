@@ -35,7 +35,7 @@ router.get('/:id', async (req, res) => {
 // Yeni etiraf yarat
 router.post('/', async (req, res) => {
   try {
-    const { başlıq, metn, anonim, token } = req.body;
+    const { başlıq, metn, şəkil, anonim, token } = req.body;
     
     if (!başlıq || başlıq.trim().length === 0) {
       return res.status(400).json({ xəta: 'Başlıq boş ola bilməz' });
@@ -48,6 +48,7 @@ router.post('/', async (req, res) => {
     const etirafData = {
       başlıq: başlıq.trim(),
       metn: metn.trim(),
+      şəkil: şəkil || '',
       anonim: anonim !== false // default true
     };
 

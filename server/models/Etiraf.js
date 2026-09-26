@@ -13,10 +13,21 @@ const serhSchema = new mongoose.Schema({
 });
 
 const etirafSchema = new mongoose.Schema({
+  başlıq: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: 200
+  },
   metn: {
     type: String,
     required: true,
-    trim: true
+    trim: true,
+    maxlength: 2000
+  },
+  şəkil: {
+    type: String,
+    default: ''
   },
   kateqoriya: {
     type: String,

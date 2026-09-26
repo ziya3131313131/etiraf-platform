@@ -493,3 +493,79 @@ Kiro AI ilə hazırlanıb ❤️
 ⚙️ **Settings panel** - Parametrlər idarəetməsi  
 
 **Platformanı daha da xüsusi edən 100+ funksiya! 🚀**
+
+
+---
+
+## 🔧 Browser Görünmə Probleminin Həlli
+
+Əgər sayt browserdə açılmır və ya məlumatlar yüklənmirsə:
+
+### 1. Render Environment Variables (Backend)
+Render.com dashboard-da bu environment variables-ları əlavə et:
+
+```
+MONGODB_URI=mongodb+srv://reylas:2p15WMo9ZN1Hr2lo@cluster0.ucqxaip.mongodb.net/etiraf?retryWrites=true&w=majority&appName=Cluster0
+CLIENT_URL=https://etiraf-platform.vercel.app
+JWT_SECRET=etiraf-super-secret-key-2024-change-this
+NODE_ENV=production
+```
+
+### 2. Vercel Environment Variables (Frontend)
+Vercel dashboard-da bu environment variables-ları əlavə et (OPTIONAL):
+
+```
+VITE_API_URL=https://etiraf-backend.onrender.com
+```
+
+### 3. CORS Problemi
+Backend-də artıq bütün Vercel URL-ləri qəbul edilir. Əgər problem davam edirsə:
+- Render-də backend-i yenidən deploy et
+- Browser console-da xəta yoxla (F12)
+- Network tab-da request-ləri yoxla
+
+### 4. Cache Problemi
+Browser cache-i təmizlə:
+- Chrome: `Ctrl+Shift+Delete` → "Cached images and files" seç
+- Service Worker-i deaktiv et: DevTools → Application → Service Workers → Unregister
+
+### 5. Production URL-ləri
+- **Frontend:** https://etiraf-platform.vercel.app
+- **Backend:** https://etiraf-backend.onrender.com
+- **Health Check:** https://etiraf-backend.onrender.com/api/health
+
+### 6. Debug
+Browser console-da bu logları görməlisən:
+```
+🔧 Config yükləndi: { environment: 'Production', API_URL: '...', ... }
+✅ Socket.IO qoşuldu: ...
+📤 POST /api/auth/login
+✅ POST /api/auth/login - 200
+```
+
+Əgər görməsən, yenilə və ya cache təmizlə.
+
+### 7. Render Free Tier
+⚠️ **VACIB:** Render free tier 15 dəqiqə işləməzsə yuxuya gedir. İlk request 30-60 saniyə çəkə bilər.
+
+---
+
+## 🚀 Yeni Funksiyalar (v2.0)
+
+### ✅ Real-time Yenilənmə
+- Etiraf atılanda dərhal görünür (səhifə yeniləməsinə ehtiyac yox)
+- Bəyənmə və şərhlər real-time yenilənir
+- Socket.IO ilə canlı yayın
+
+### ✅ Browser Uyğunluğu
+- CORS problemi həll olundu
+- Bütün brauzerlər dəstəklənir (Chrome, Firefox, Safari, Edge)
+- Service Worker cache strategiyası optimallaşdırıldı
+- API request-ləri heç vaxt cache-dən gəlmir (həmişə canlı data)
+
+### ✅ Performance
+- Axios timeout: 30 saniyə
+- Socket.IO auto-reconnect: 5 cəhd
+- Request/Response logging
+- Error handling və retry logic
+

@@ -80,6 +80,18 @@ function EtirafCard({ etiraf, onBeyenme, onSerh, onSil }) {
 
       <p className="etiraf-metn">{etiraf.metn}</p>
 
+      {/* Şəkil */}
+      {etiraf.şəkil && (
+        <div className="etiraf-image-container">
+          <img 
+            src={etiraf.şəkil} 
+            alt="Etiraf şəkli" 
+            className="etiraf-image"
+            loading="lazy"
+          />
+        </div>
+      )}
+
       <div className="etiraf-actions">
         <button 
           className="action-btn"

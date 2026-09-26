@@ -10,17 +10,50 @@ import CanliYayim from './components/CanliYayim';
 import Destek from './components/Destek';
 import ProfilModal from './components/ProfilModal';
 import Bildirislər from './components/Bildirislər';
-import { API_URL as BASE_URL, API_BASE } from './config';
+import Yarismalar from './components/Yarismalar';
+import { API_URL as BASE_URL, API_BASE, SOCKET_URL } from './config';
 
 const API_URL = API_BASE;
-const socket = io(BASE_URL);
+const socket = io(SOCKET_URL, {
+  reconnection: true,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
+  reconnectionAttempts: 5,
+  timeout: 20000,
+  transports: ['websocket', 'polling'] // WebSocket ilk, polling ehtiyat
+});
+
+// Socket connection event handlers
+socket.on('connect', () => {
+  console.log('✅ Socket.IO qoşuldu:', socket.id);
+});
+
+socket.on('disconnect', (reason) => {
+  console.warn('⚠️ Socket.IO bağlandı:', reason);
+});
+
+socket.on('connect_error', (error) => {
+  console.error('❌ Socket.IO qoşulma xətası:', error.message);
+});
+
+socket.on('reconnect', (attemptNumber) => {
+  console.log(`🔄 Socket.IO yenidən qoşuldu (cəhd ${attemptNumber})`);
+});
+
+socket.on('reconnect_attempt', (attemptNumber) => {
+  console.log(`🔄 Socket.IO yenidən qoşulmağa cəhd edir (${attemptNumber})...`);
+});
+
+socket.on('reconnect_failed', () => {
+  console.error('❌ Socket.IO yenidən qoşula bilmədi');
+});
 
 function AppContent() {
   const { user, loading: authLoading, authenticated, çıxış, isAdmin } = useAuth();
   const [etiraflar, setEtiraflar] = useState([]);
   const [onlineUsers, setOnlineUsers] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [səhifə, setSəhifə] = useState('etiraflar'); // 'etiraflar', 'canli', 'admin', 'destek'
+  const [səhifə, setSəhifə] = useState('etiraflar'); // 'etiraflar', 'canli', 'yarismalar', 'admin', 'destek'
   const [profilPanelAçıq, setProfilPanelAçıq] = useState(false);
   const [bildirislərAçıq, setBildirislərAçıq] = useState(false);
   const [oxunmayanBildiriş, setOxunmayanBildiriş] = useState(0);
@@ -35,7 +68,14 @@ function AppContent() {
     // Socket.IO event listeners
     socket.on('yeni-etiraf', (yeniEtiraf) => {
       console.log('🆕 Yeni etiraf alındı:', yeniEtiraf);
-      setEtiraflar(prev => [yeniEtiraf, ...prev]);
+      // Yalnız başqa istifadəçilərin etiraflarını əlavə et (öz etirafımız artıq əlavə olunub)
+      setEtiraflar(prev => {
+        // Əgər bu etiraf artıq siyahıdadırsa, əlavə etmə
+        if (prev.some(e => e._id === yeniEtiraf._id)) {
+          return prev;
+        }
+        return [yeniEtiraf, ...prev];
+      });
     });
 
     socket.on('beyenme-yenilendi', ({ etirafId, bəyənilmələr }) => {
@@ -118,16 +158,22 @@ function AppContent() {
     }
   };
 
-  const handleYeniEtiraf = async (başlıq, metn, anonim) => {
+  const handleYeniEtiraf = async (başlıq, metn, anonim, şəkil = '') => {
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`${API_URL}/etiraf`, { 
+      const response = await axios.post(`${API_URL}/etiraf`, { 
         başlıq,
-        metn, 
+        metn,
+        şəkil,
         anonim,
         token
       });
-      // Socket.IO avtomatik olaraq yeni etirafı göndərəcək
+      
+      // ƏLAVƏ: Socket.IO-dan əlavə, lokal state-ə də əlavə edək (əgər Socket işləməzsə)
+      // Backend-dən gələn etirafı siyahının əvvəlinə əlavə et
+      setEtiraflar(prev => [response.data, ...prev]);
+      
+      // Socket.IO avtomatik olaraq digər istifadəçilərə yeni etirafı göndərəcək
     } catch (error) {
       console.error('Etiraf göndərilərkən xəta:', error);
       throw error;
@@ -137,7 +183,17 @@ function AppContent() {
   const handleSerh = async (etirafId, metn) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`${API_URL}/etiraf/${etirafId}/serh`, { metn, token });
+      const response = await axios.post(`${API_URL}/etiraf/${etirafId}/serh`, { metn, token });
+      
+      // Lokal state-i dərhal yenilə
+      setEtiraflar(prev =>
+        prev.map(e => {
+          if (e._id === etirafId) {
+            return response.data; // Backend tam etirafı qaytarır
+          }
+          return e;
+        })
+      );
     } catch (error) {
       console.error('Şərh göndərilərkən xəta:', error);
       throw error;
@@ -147,7 +203,12 @@ function AppContent() {
   const handleBeyenme = async (etirafId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`${API_URL}/etiraf/${etirafId}/beyenme`, { token });
+      const response = await axios.post(`${API_URL}/etiraf/${etirafId}/beyenme`, { token });
+      
+      // Lokal state-i dərhal yenilə
+      setEtiraflar(prev =>
+        prev.map(e => e._id === etirafId ? response.data : e)
+      );
     } catch (error) {
       console.error('Bəyənmə zamanı xəta:', error);
     }
@@ -192,6 +253,12 @@ function AppContent() {
             onClick={() => setSəhifə('canli')}
           >
             📹 Canlı
+          </button>
+          <button 
+            className={səhifə === 'yarismalar' ? 'active' : ''}
+            onClick={() => setSəhifə('yarismalar')}
+          >
+            🏆 Yarışmalar
           </button>
           <button 
             className={səhifə === 'destek' ? 'active' : ''}
@@ -304,6 +371,7 @@ function AppContent() {
         )}
 
         {səhifə === 'canli' && <CanliYayim />}
+        {səhifə === 'yarismalar' && <Yarismalar />}
         {səhifə === 'destek' && <Destek />}
         {səhifə === 'admin' && isAdmin && <AdminPanel />}
       </div>
