@@ -20,21 +20,27 @@ const yarışmaSchema = new mongoose.Schema({
     default: 'etiraf'
   },
   mükafat: {
-    jeton: { type: Number, default: 0 },
+    növ: {
+      type: String,
+      enum: ['jeton', 'badge', 'xüsusi'],
+      default: 'jeton'
+    },
+    miqdar: {
+      type: Number,
+      default: 100
+    },
     badge: { 
       ad: String,
       şəkil: String,
       rəng: String
     },
-    xüsusi: String // Xüsusi mükafat təsviri
+    xüsusi: String
   },
-  başlanğıcTarixi: {
-    type: Date,
-    required: true
+  başlama: {
+    type: Date
   },
-  bitişTarixi: {
-    type: Date,
-    required: true
+  bitmə: {
+    type: Date
   },
   status: {
     type: String,
@@ -60,24 +66,9 @@ const yarışmaSchema = new mongoose.Schema({
     qeydiyyatTarixi: {
       type: Date,
       default: Date.now
-    },
-    səslər: {
-      type: Number,
-      default: 0
     }
   }],
-  qalibər: [{
-    yer: Number, // 1, 2, 3
-    istifadəçi: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    mükafatVerildi: {
-      type: Boolean,
-      default: false
-    }
-  }],
-  səsVerənlər: [{
+  səslər: [{
     istifadəçi: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
@@ -91,11 +82,15 @@ const yarışmaSchema = new mongoose.Schema({
       default: Date.now
     }
   }],
+  qalib: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
   parametrlər: {
-    səsLimiti: { type: Number, default: 1 }, // Hər istifadəçi neçə səs verə bilər
+    səsLimiti: { type: Number, default: 1 },
     minimumIştirakçı: { type: Number, default: 3 },
     maksimumIştirakçı: { type: Number, default: 100 },
-    avtomatikQalib: { type: Boolean, default: true } // Bitdikdə avtomatik qalib elan et
+    avtomatikQalib: { type: Boolean, default: true }
   },
   yaradıcı: {
     type: mongoose.Schema.Types.ObjectId,
@@ -108,51 +103,38 @@ const yarışmaSchema = new mongoose.Schema({
   }
 });
 
+// Virtual field - səs sayını hesabla
+yarışmaSchema.virtual('səsSayı').get(function() {
+  return this.səslər.length;
+});
+
 // Status-u avtomatik yenilə
 yarışmaSchema.methods.statusYenilə = function() {
   const indi = new Date();
   
-  if (indi < this.başlanğıcTarixi) {
-    this.status = 'gələcək';
-  } else if (indi >= this.başlanğıcTarixi && indi <= this.bitişTarixi) {
-    this.status = 'aktiv';
-  } else if (indi > this.bitişTarixi) {
-    this.status = 'bitmiş';
-    
-    // Avtomatik qalib elan et
-    if (this.parametrlər.avtomatikQalib && this.qalibər.length === 0) {
-      this.qalibləriTəyinEt();
+  if (this.başlama && this.bitmə) {
+    if (indi < this.başlama) {
+      this.status = 'gələcək';
+    } else if (indi >= this.başlama && indi <= this.bitmə) {
+      this.status = 'aktiv';
+    } else if (indi > this.bitmə) {
+      this.status = 'bitmiş';
     }
   }
   
   return this.save();
 };
 
-// Qalibləri təyin et
-yarişmaSchema.methods.qalibləriTəyinEt = function() {
-  // Səslərə görə sırala
-  const sıralanmış = this.iştirakçılar
-    .sort((a, b) => b.səslər - a.səslər)
-    .slice(0, 3);
-  
-  this.qalibər = sıralanmış.map((iştirakçı, index) => ({
-    yer: index + 1,
-    istifadəçi: iştirakçı.istifadəçi,
-    mükafatVerildi: false
-  }));
-  
-  return this.save();
-};
-
 // Səs ver
-yarişmaSchema.methods.səsVer = async function(istifadəçiId, iştirakçıId) {
+yarışmaSchema.methods.səsVer = async function(istifadəçiId, iştirakçıId) {
   // Yoxla ki, artıq səs veribmi
-  const səsVerib = this.səsVerənlər.some(
-    s => s.istifadəçi.toString() === istifadəçiId.toString()
+  const səsVerib = this.səslər.some(
+    s => s.istifadəçi.toString() === istifadəçiId.toString() && 
+         s.iştirakçı.toString() === iştirakçıId.toString()
   );
   
   if (səsVerib) {
-    throw new Error('Artıq səs vermisiniz');
+    throw new Error('Artıq bu iştirakçıya səs vermisiniz');
   }
   
   // Yoxla ki, status aktiv olsun
@@ -160,19 +142,17 @@ yarişmaSchema.methods.səsVer = async function(istifadəçiId, iştirakçıId) 
     throw new Error('Yarışma aktiv deyil');
   }
   
-  // İştirakçını tap
-  const iştirakçı = this.iştirakçılar.find(
+  // İştirakçını yoxla
+  const iştirakçıVar = this.iştirakçılar.some(
     i => i.istifadəçi.toString() === iştirakçıId.toString()
   );
   
-  if (!iştirakçı) {
+  if (!iştirakçıVar) {
     throw new Error('İştirakçı tapılmadı');
   }
   
   // Səs əlavə et
-  iştirakçı.səslər += 1;
-  
-  this.səsVerənlər.push({
+  this.səslər.push({
     istifadəçi: istifadəçiId,
     iştirakçı: iştirakçıId,
     tarix: new Date()
@@ -181,4 +161,31 @@ yarişmaSchema.methods.səsVer = async function(istifadəçiId, iştirakçıId) 
   return this.save();
 };
 
-export default mongoose.model('Yarisma', yarişmaSchema);
+// Qatıl
+yarışmaSchema.methods.qatıl = async function(istifadəçiId, işId, işNövü) {
+  // Yoxla ki, artıq qatılıbmı
+  const qatılıb = this.iştirakçılar.some(
+    i => i.istifadəçi.toString() === istifadəçiId.toString()
+  );
+  
+  if (qatılıb) {
+    throw new Error('Artıq qatılmısınız');
+  }
+  
+  // Yoxla ki, maksimum iştirakçı sayı keçilməsin
+  if (this.iştirakçılar.length >= this.parametrlər.maksimumIştirakçı) {
+    throw new Error('Maksimum iştirakçı sayına çatılıb');
+  }
+  
+  // Qatıl
+  this.iştirakçılar.push({
+    istifadəçi: istifadəçiId,
+    iş: işId,
+    işNövü: işNövü,
+    qeydiyyatTarixi: new Date()
+  });
+  
+  return this.save();
+};
+
+export default mongoose.model('Yarisma', yarışmaSchema);
